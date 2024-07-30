@@ -10,6 +10,8 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.pru.recognizeimage.R
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.ui.Result
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 
@@ -42,12 +44,12 @@ object Global {
         }
     }
 
-    private val similarChars = mapOf(
+    val similarChars = mapOf(
         'a' to listOf('4', '9'),
         'b' to listOf('6', '8'),
         'c' to listOf('0', 'o'),
         'd' to listOf('b', '0', 'o'),
-        'e' to listOf('3'),
+        'e' to listOf('3','f'),
         'f' to listOf('7', 'e'),
         'g' to listOf('9', '6', '0', 'o','b'),
         'h' to listOf('4', 'i', '1'),
@@ -81,72 +83,47 @@ object Global {
         '9' to listOf('6', 'g', 'p', 'q', '0', '3')
     )
 
-    fun handleScanCameraImage(
-        uri: Uri,
+    suspend fun handleScanCameraImage(
+        uri: Uri?,
+        croppedBitmap: Bitmap? = null,
         bitmapListener: (Bitmap) -> Unit,
-        resultListener: (String, List<Result>) -> Unit
-    ) {
-        var bitmap = MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
+        visionTextListener: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        var bitmap =
+            croppedBitmap ?: MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
         bitmap = rotateBitmapIfNeeded(bitmap)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         bitmapListener.invoke(bitmap)
         val imageInput = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(imageInput).addOnSuccessListener { visionText ->
-            val results = mutableListOf<Result>()
-            val text = visionText.text
-//            val text = "ab"
-            val singleLineText =
-                StringBuilder(
-                    text.replace("[^a-zA-Z0-9]".toRegex(), "")
-                        .lowercase()
-                        .replace("ind", "")
-                )
-            val resultValue = singleLineText.toString().uppercase()
-            /*results.add(Result(resultValue = resultValue, isSelected = true, multipleOccurrences = false))
-            for (i in singleLineText.indices) {
-                val ls = similarChars[singleLineText[i]] ?: emptyList()
-                for (c in ls) {
-                    val temp = StringBuilder(singleLineText)
-                    temp.setCharAt(i, c)
-                    results.add(
-                        Result(
-                            resultValue = temp.toString().uppercase(),
-                            isSelected = false,
-                            multipleOccurrences = false
-                        )
-                    )
-                }
-            }*/
-
-            val cases = mutableMapOf<Char,List<Char>>()
-            for (i in singleLineText.indices) {
-                val ls = similarChars[singleLineText[i]] ?: emptyList()
-                cases[singleLineText[i]] = ls
-            }
-            val combinations = generateDynamicCombinations(cases)
-            for (cmb in combinations){
-                results.add(cmb)
-            }
-
-
-            resultListener.invoke(resultValue, results)
+            visionTextListener.invoke(visionText.text)
         }.addOnFailureListener {
             it.printStackTrace()
         }
     }
 
 
-    private fun generateDynamicCombinations(cases: Map<Char, List<Char>>): List<Result> {
+    suspend fun generateDynamicCombinations(
+        cases: List<Pair<Char, List<Char>>>,
+        allowMultipleOccurrences: Boolean
+    ): List<Result> = withContext(Dispatchers.IO) {
         val combinations = mutableListOf<Result>()
-        val placeholders = cases.keys.joinToString("")
+        val placeholders = cases.map { it.first }.joinToString("")
 
         // Add the placeholder combination
-        combinations.add(Result(resultValue = placeholders.uppercase(), isSelected = true, multipleOccurrences = false))
+        combinations.add(
+            Result(
+                resultValue = placeholders.uppercase(),
+                isSelected = true,
+                multipleOccurrences = false
+            )
+        )
 
         // Add combinations of single placeholders with their corresponding values
         for ((char, values) in cases) {
             for (value in values) {
-                val combinationWithPlaceholder = placeholders.replace(char.toString(), value.toString())
+                val combinationWithPlaceholder =
+                    placeholders.replace(char.toString(), value.toString())
                 if (combinationWithPlaceholder != value.toString()) {
                     val result = Result(
                         resultValue = combinationWithPlaceholder.uppercase(),
@@ -170,16 +147,19 @@ object Global {
                 return
             }
             val char = placeholders[index]
-            cases[char]?.forEach { value ->
+            cases.find { it.first == char }?.second?.forEach { value ->
                 generateFullCombinations(current + value, index + 1)
             }
         }
 
-        // Start generating full combinations
-        generateFullCombinations("", 0)
+        if (allowMultipleOccurrences && placeholders.length <12) {
+            // Start generating full combinations
+            generateFullCombinations("", 0)
+        }
+
 
         // Remove duplicates and sort
-        return combinations.distinct()
+        combinations.distinct()
     }
 
 }

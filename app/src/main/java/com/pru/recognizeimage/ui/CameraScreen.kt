@@ -1,6 +1,8 @@
 package com.pru.recognizeimage.ui
 
+import android.annotation.SuppressLint
 import android.net.Uri
+import android.view.MotionEvent
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -18,10 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -30,20 +29,20 @@ import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
-import com.pru.recognizeimage.R
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.theme.RecognizeImageTheme
 import java.io.File
 
 
+@SuppressLint("ClickableViewAccessibility")
 @Composable
 fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val activityListener = rememberLauncherForActivityResult(contract = CropImageContract()) {
-        it.uriContent?.path?.let {
-            viewModel.capturedFile = File(it)
+    val activityListener = rememberLauncherForActivityResult(contract = CropImageContract()) { result ->
+        result.uriContent?.path?.let {
+            viewModel.capturedUri = File(it)
+            resultListener.invoke()
         }
-        resultListener.invoke()
     }
     Scaffold(containerColor = Color.Black) {
         Column(
@@ -58,19 +57,24 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                     PreviewView(context).apply {
                         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
                         this.clipToOutline = true
-                        implementationMode =
-                            PreviewView.ImplementationMode.COMPATIBLE
+//                        implementationMode =
+//                            PreviewView.ImplementationMode.COMPATIBLE
                         post {
                             viewModel.startCamera(this.surfaceProvider, lifecycleOwner)
                         }
+                        this.setOnTouchListener { _, event ->
+                            if (event.action == MotionEvent.ACTION_DOWN) {
+                                viewModel.focusOnPoint(x = event.x, y = event.y, view = this)
+                                true
+                            } else {
+                                false
+                            }
+                        }
                     }
                 }, modifier = Modifier
-                    .width(dimensionResource(id = R.dimen.sc_width))
+                    .width(320.dp)
                     .height(
-                        dimensionResource(id = R.dimen.sc_height)
-                    )
-                    .paint(
-                        painterResource(id = R.drawable.bg),
+                        200.dp
                     )
 
             )
@@ -83,7 +87,7 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                     if (crop) {
                         activityListener.launch(
                             CropImageContractOptions(
-                                uri = Uri.fromFile(viewModel.capturedFile!!),
+                                uri = Uri.fromFile(viewModel.capturedUri!!),
                                 cropImageOptions = CropImageOptions(
                                     guidelines = CropImageView.Guidelines.ON,
                                     cropShape = CropImageView.CropShape.RECTANGLE,

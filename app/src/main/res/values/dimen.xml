@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="sc_width">320dp</dimen>
+    <!--<dimen name="sc_width">320dp</dimen>
     <dimen name="sc_height">200dp</dimen>
     <dimen name="sc_width_b">350dp</dimen>
-    <dimen name="sc_height_b">130dp</dimen>
+    <dimen name="sc_height_b">130dp</dimen>-->
 </resources>

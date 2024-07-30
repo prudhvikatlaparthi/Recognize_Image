@@ -1,12 +1,17 @@
 package com.pru.recognizeimage.ui
 
+import android.graphics.Bitmap
+import android.util.Log
 import android.util.Size
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -15,6 +20,7 @@ import com.pru.recognizeimage.utils.Global
 import com.pru.recognizeimage.utils.Global.dpToPx
 import com.pru.recognizeimage.appContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class CameraViewModel : ViewModel() {
 
@@ -25,11 +31,15 @@ class CameraViewModel : ViewModel() {
     private val imageAnalyzer = ImageAnalysis.Builder()
         .build()
     private val preview = Preview.Builder()
+        .setTargetResolution(Size(dpToPx(320), dpToPx(200)))
         .build()
 
-    var capturedFile: File? = null
+    var capturedUri: File? = null
+
+    private var cameraControl : CameraControl? = null
 
     val requiredCrop = mutableStateOf(false)
+    val allowMultipleOccurrences = mutableStateOf(false)
 
     fun startCamera(surfaceProvider: Preview.SurfaceProvider, lifecycleOwner: LifecycleOwner) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(appContext)
@@ -43,13 +53,14 @@ class CameraViewModel : ViewModel() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
+                val camera = cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageCapture,
                     imageAnalyzer
                 )
+                cameraControl = camera.cameraControl
             } catch (exc: Exception) {
                 exc.printStackTrace()
             }
@@ -72,9 +83,35 @@ class CameraViewModel : ViewModel() {
                 }
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    capturedFile = photoFile
+                    capturedUri = photoFile
                     result.invoke(true, "")
                 }
             })
+    }
+
+    fun focusOnPoint(view: PreviewView, x: Float, y: Float) {
+        // Convert view coordinates to camera coordinates
+        val factory = view.meteringPointFactory
+        val point = factory.createPoint(x, y)
+
+        // Create FocusMeteringAction
+        val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF)
+            .setAutoCancelDuration(5, TimeUnit.SECONDS)
+            .build()
+
+        // Start focus and metering
+        val result = cameraControl?.startFocusAndMetering(action) ?: return
+        result.addListener({
+            try {
+                val success = result.get().isFocusSuccessful
+                if (success) {
+                    Log.d("TAG", "Focus successful")
+                } else {
+                    Log.d("TAG", "Focus failed")
+                }
+            } catch (e: Exception) {
+                Log.e("TAG", "Focus failed with exception: $e")
+            }
+        }, ContextCompat.getMainExecutor(appContext))
     }
 }
