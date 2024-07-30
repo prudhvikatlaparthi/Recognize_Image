@@ -1,4 +1,4 @@
-package com.pru.recognizeimage.ui.theme
+package com.pru.recognizeimage.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

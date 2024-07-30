@@ -1,4 +1,4 @@
-package com.pru.recognizeimage.ui
+package com.pru.recognizeimage.utils
 
 import kotlinx.serialization.Serializable
 

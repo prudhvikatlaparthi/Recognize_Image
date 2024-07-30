@@ -1,4 +1,4 @@
-package com.pru.recognizeimage
+package com.pru.recognizeimage.ui
 
 import android.net.Uri
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -30,7 +30,9 @@ import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
-import com.pru.recognizeimage.ui.theme.RecognizeImageTheme
+import com.pru.recognizeimage.R
+import com.pru.recognizeimage.appContext
+import com.pru.recognizeimage.theme.RecognizeImageTheme
 import java.io.File
 
 

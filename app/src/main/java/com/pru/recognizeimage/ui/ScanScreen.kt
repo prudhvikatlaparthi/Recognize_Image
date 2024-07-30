@@ -1,4 +1,4 @@
-package com.pru.recognizeimage
+package com.pru.recognizeimage.ui
 
 import android.graphics.Bitmap
 import android.net.Uri
@@ -41,8 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pru.recognizeimage.Global.handleScanCameraImage
-import com.pru.recognizeimage.ui.theme.RecognizeImageTheme
+import com.pru.recognizeimage.utils.Global.handleScanCameraImage
+import com.pru.recognizeimage.theme.RecognizeImageTheme
 
 @Composable
 fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
@@ -138,7 +138,8 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                             headlineContent = {
                                 Text(
                                     text = res.resultValue,
-                                    modifier = Modifier.alpha(if (res.isSelected) 1f else 0.5f)
+                                    modifier = Modifier.alpha(if (res.isSelected) 1f else 0.5f),
+                                    color = if (res.multipleOccurrences) Color.Red else Color.Black
                                 )
                             },
                             trailingContent = {
@@ -167,7 +168,11 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
     }
 }
 
-data class Result(var resultValue: String, var isSelected: Boolean)
+data class Result(
+    var resultValue: String,
+    var isSelected: Boolean,
+    var multipleOccurrences: Boolean
+)
 
 
 @Preview(showBackground = true)

@@ -1,4 +1,4 @@
-package com.pru.recognizeimage
+package com.pru.recognizeimage.ui
 
 import android.util.Size
 import androidx.camera.core.CameraSelector
@@ -7,14 +7,13 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
-import com.pru.recognizeimage.Global.dpToPx
+import com.pru.recognizeimage.utils.Global
+import com.pru.recognizeimage.utils.Global.dpToPx
+import com.pru.recognizeimage.appContext
 import java.io.File
 
 class CameraViewModel : ViewModel() {

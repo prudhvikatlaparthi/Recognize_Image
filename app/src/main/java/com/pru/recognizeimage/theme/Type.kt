@@ -1,4 +1,4 @@
-package com.pru.recognizeimage.ui.theme
+package com.pru.recognizeimage.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

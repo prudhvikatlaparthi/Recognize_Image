@@ -9,8 +9,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.pru.recognizeimage.ui.ScreenRoutes
-import com.pru.recognizeimage.ui.theme.RecognizeImageTheme
+import com.pru.recognizeimage.utils.ScreenRoutes
+import com.pru.recognizeimage.theme.RecognizeImageTheme
+import com.pru.recognizeimage.ui.CameraScreen
+import com.pru.recognizeimage.ui.CameraViewModel
+import com.pru.recognizeimage.ui.ScanScreen
 
 class MainActivity : ComponentActivity() {
 
