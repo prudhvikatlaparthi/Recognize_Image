@@ -42,15 +42,16 @@ import java.io.File
 fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val activityListener = rememberLauncherForActivityResult(contract = CropImageContract()) { result ->
-        result.originalUri?.path?.let {
-            viewModel.capturedUri = File(it)
-            scope.launch {
-                delay(200)
-                resultListener.invoke()
+    val activityListener =
+        rememberLauncherForActivityResult(contract = CropImageContract()) { result ->
+            result.getUriFilePath(appContext, true)?.let {
+                viewModel.capturedUri = File(it)
+                scope.launch {
+                    delay(200)
+                    resultListener.invoke()
+                }
             }
         }
-    }
     Scaffold(containerColor = Color.Black) {
         Column(
             modifier = Modifier
@@ -79,7 +80,7 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                 }, modifier = Modifier
                     .width(320.dp)
                     .height(
-                        200.dp
+                        150.dp
                     )
 
             )

@@ -54,6 +54,7 @@ import com.pru.recognizeimage.utils.Global.generateDynamicCombinations
 import com.pru.recognizeimage.utils.Global.similarChars
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.math.sin
 
 @Composable
 fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
@@ -107,7 +108,7 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
         if (viewModel.capturedUri != null) {
             val uri = Uri.fromFile(viewModel.capturedUri!!)
             showLoader = true
-            viewModel.handleScanCameraImage(uri = uri, croppedBitmap = null, bitmapListener = {
+            viewModel.handleScanCameraImage(uri = uri, bitmapListener = {
                 bitmap = it
             }) { pn ->
                 scope.launch(Dispatchers.IO) {
@@ -122,7 +123,9 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                     val cases = mutableListOf<Pair<Char, List<Char>>>()
                     for (i in singleLineText.indices) {
                         val ls = similarChars[singleLineText[i]] ?: emptyList()
-                        cases.add(Pair(singleLineText[i], ls))
+                        val returnList = ls.toMutableList()
+                        returnList.add(singleLineText[i])
+                        cases.add(Pair(singleLineText[i], returnList))
                     }
                     val combinations =
                         generateDynamicCombinations(cases, viewModel.allowMultipleOccurrences.value)
@@ -204,7 +207,7 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                         contentDescription = null,
                         modifier = Modifier
                             .width(320.dp)
-                            .height(200.dp),
+                            .height(150.dp),
                     )
                 }
                 Button(onClick = {

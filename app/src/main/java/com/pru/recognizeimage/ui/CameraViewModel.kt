@@ -34,12 +34,12 @@ class CameraViewModel : ViewModel() {
 
 
     private val imageCapture = ImageCapture.Builder()
-        .setTargetResolution(Size(dpToPx(320), dpToPx(200)))
+        .setTargetResolution(Size(dpToPx(320), dpToPx(150)))
         .build()
     private val imageAnalyzer = ImageAnalysis.Builder()
         .build()
     private val preview = Preview.Builder()
-        .setTargetResolution(Size(dpToPx(320), dpToPx(200)))
+        .setTargetResolution(Size(dpToPx(320), dpToPx(150)))
         .build()
 
     var capturedUri: File? = null
@@ -126,17 +126,16 @@ class CameraViewModel : ViewModel() {
 
     suspend fun handleScanCameraImage(
         uri: Uri?,
-        croppedBitmap: Bitmap? = null,
         bitmapListener: (Bitmap) -> Unit,
         visionTextListener: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
-        var bitmap =
-            croppedBitmap ?: MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
+        var bitmap = MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
         bitmap = rotateBitmapIfNeeded(bitmap)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         bitmapListener.invoke(bitmap)
         val imageInput = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(imageInput).addOnSuccessListener { visionText ->
+            Log.i("Prudhvi Log", "handleScanCameraImage: $visionText")
             visionTextListener.invoke(visionText.text)
         }.addOnFailureListener {
             it.printStackTrace()
