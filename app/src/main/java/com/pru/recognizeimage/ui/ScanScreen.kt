@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.theme.RecognizeImageTheme
 import com.pru.recognizeimage.utils.Global.generateDynamicCombinations
-import com.pru.recognizeimage.utils.Global.handleScanCameraImage
 import com.pru.recognizeimage.utils.Global.similarChars
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -108,7 +107,7 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
         if (viewModel.capturedUri != null) {
             val uri = Uri.fromFile(viewModel.capturedUri!!)
             showLoader = true
-            handleScanCameraImage(uri = uri, croppedBitmap = null, bitmapListener = {
+            viewModel.handleScanCameraImage(uri = uri, croppedBitmap = null, bitmapListener = {
                 bitmap = it
             }) { pn ->
                 scope.launch(Dispatchers.IO) {
@@ -116,10 +115,10 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                     val singleLineText =
                         StringBuilder(
                             pn.replace("[^a-zA-Z0-9]".toRegex(), "")
-                                .lowercase()
-                                .replace("ind", "")
+                                .uppercase()
+                                .replace("IND", "")
                         )
-                    plateNumber = singleLineText.toString().uppercase()
+                    plateNumber = singleLineText.toString()
                     val cases = mutableListOf<Pair<Char, List<Char>>>()
                     for (i in singleLineText.indices) {
                         val ls = similarChars[singleLineText[i]] ?: emptyList()

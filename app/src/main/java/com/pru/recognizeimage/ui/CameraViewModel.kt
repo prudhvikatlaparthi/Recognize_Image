@@ -1,6 +1,8 @@
 package com.pru.recognizeimage.ui
 
 import android.graphics.Bitmap
+import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
 import androidx.camera.core.CameraControl
@@ -16,9 +18,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.pru.recognizeimage.utils.Global
 import com.pru.recognizeimage.utils.Global.dpToPx
 import com.pru.recognizeimage.appContext
+import com.pru.recognizeimage.utils.Global.rotateBitmapIfNeeded
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -113,5 +121,25 @@ class CameraViewModel : ViewModel() {
                 Log.e("TAG", "Focus failed with exception: $e")
             }
         }, ContextCompat.getMainExecutor(appContext))
+    }
+
+
+    suspend fun handleScanCameraImage(
+        uri: Uri?,
+        croppedBitmap: Bitmap? = null,
+        bitmapListener: (Bitmap) -> Unit,
+        visionTextListener: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        var bitmap =
+            croppedBitmap ?: MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
+        bitmap = rotateBitmapIfNeeded(bitmap)
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        bitmapListener.invoke(bitmap)
+        val imageInput = InputImage.fromBitmap(bitmap, 0)
+        recognizer.process(imageInput).addOnSuccessListener { visionText ->
+            visionTextListener.invoke(visionText.text)
+        }.addOnFailureListener {
+            it.printStackTrace()
+        }
     }
 }

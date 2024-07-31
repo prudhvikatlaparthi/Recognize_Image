@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,8 @@ import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.theme.RecognizeImageTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 
@@ -38,10 +41,14 @@ import java.io.File
 @Composable
 fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
     val activityListener = rememberLauncherForActivityResult(contract = CropImageContract()) { result ->
-        result.uriContent?.path?.let {
+        result.originalUri?.path?.let {
             viewModel.capturedUri = File(it)
-            resultListener.invoke()
+            scope.launch {
+                delay(200)
+                resultListener.invoke()
+            }
         }
     }
     Scaffold(containerColor = Color.Black) {
@@ -57,8 +64,6 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                     PreviewView(context).apply {
                         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
                         this.clipToOutline = true
-//                        implementationMode =
-//                            PreviewView.ImplementationMode.COMPATIBLE
                         post {
                             viewModel.startCamera(this.surfaceProvider, lifecycleOwner)
                         }
