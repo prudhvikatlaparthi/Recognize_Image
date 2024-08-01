@@ -17,6 +17,17 @@ import java.io.File
 
 object Global {
 
+    sealed interface Position {
+        data object Start : Position
+        data object End : Position
+        data object Middle : Position
+    }
+
+    data class PositionReplace(var at : Position, var with : String)
+
+    val ignoreStrings =
+        setOf(PositionReplace(Position.Start, "IND"), PositionReplace(Position.Middle, "GAUTENG"))
+
     fun dpToPx(dp: Int): Int {
         return (dp * appContext.resources.displayMetrics.density).toInt()
     }
@@ -53,7 +64,7 @@ object Global {
         'F' to listOf('7', 'E').sorted(),
         'G' to listOf('9', '6', '0', 'O','B').sorted(),
         'H' to listOf('4', 'I', '1').sorted(),
-        'I' to listOf('1', 'L').sorted(),
+        'I' to listOf('1', 'T', 'L').sorted(),
         'J' to listOf('7').sorted(),
         'K' to listOf('B').sorted(),
         'L' to listOf('1', '4').sorted(),
@@ -72,10 +83,10 @@ object Global {
         'Y' to listOf('V').sorted(),
         'Z' to listOf('2').sorted(),
         '0' to listOf('O', 'G', 'Q').sorted(),
-        '1' to listOf('i', 'L').sorted(),
+        '1' to listOf('I', 'L').sorted(),
         '2' to listOf('Z').sorted(),
         '3' to listOf('E').sorted(),
-        '4' to listOf('A', 'H', 'L').sorted(),
+        '4' to listOf('A','Z', 'H', 'L').sorted(),
         '5' to listOf('S', '6', 'C').sorted(),
         '6' to listOf('B', '8').sorted(),
         '7' to listOf('F', 'T', 'Z', '2').sorted(),
@@ -88,22 +99,23 @@ object Global {
         allowMultipleOccurrences: Boolean
     ): List<Result> = withContext(Dispatchers.IO) {
         val combinations = mutableListOf<Result>()
-        val placeholders = cases.map { it.first }.joinToString("")
+        val placeholders = StringBuilder(cases.map { it.first }.joinToString(""))
 
         // Add the placeholder combination
         combinations.add(
             Result(
-                resultValue = placeholders,
+                resultValue = placeholders.toString(),
                 isSelected = true,
                 multipleOccurrences = false
             )
         )
 
         // Add combinations of single placeholders with their corresponding values
-        for ((char, values) in cases) {
+        for (i in cases.indices) {
+            val (_, values) = cases[i]
             for (value in values) {
-                val combinationWithPlaceholder =
-                    placeholders.replace(char.toString(), value.toString())
+                placeholders.setCharAt(i,value)
+                val combinationWithPlaceholder = placeholders.toString()
                 if (combinationWithPlaceholder != value.toString()) {
                     val result = Result(
                         resultValue = combinationWithPlaceholder,

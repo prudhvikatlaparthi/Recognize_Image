@@ -135,7 +135,7 @@ class CameraViewModel : ViewModel() {
         bitmapListener.invoke(bitmap)
         val imageInput = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(imageInput).addOnSuccessListener { visionText ->
-            Log.i("Prudhvi Log", "handleScanCameraImage: $visionText")
+            Log.i("Prudhvi Log", "handleScanCameraImage: ${visionText.text}")
             visionTextListener.invoke(visionText.text)
         }.addOnFailureListener {
             it.printStackTrace()

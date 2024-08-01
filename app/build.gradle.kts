@@ -78,6 +78,8 @@ dependencies {
 
     implementation("com.vanniktech:android-image-cropper:4.5.0")
 
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.27.0")
+
     implementation(libs.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 
