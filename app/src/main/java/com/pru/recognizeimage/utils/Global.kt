@@ -81,7 +81,7 @@ object Global {
         'W' to listOf('V', 'M').sorted(),
         'X' to listOf('8').sorted(),
         'Y' to listOf('V').sorted(),
-        'Z' to listOf('2').sorted(),
+        'Z' to listOf('2','4').sorted(),
         '0' to listOf('O', 'G', 'Q').sorted(),
         '1' to listOf('I', 'L').sorted(),
         '2' to listOf('Z').sorted(),

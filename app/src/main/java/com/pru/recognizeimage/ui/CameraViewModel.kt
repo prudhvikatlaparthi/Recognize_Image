@@ -21,9 +21,9 @@ import androidx.lifecycle.ViewModel
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.utils.Global
 import com.pru.recognizeimage.utils.Global.dpToPx
-import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.utils.Global.rotateBitmapIfNeeded
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,7 +44,7 @@ class CameraViewModel : ViewModel() {
 
     var capturedUri: File? = null
 
-    private var cameraControl : CameraControl? = null
+    private var cameraControl: CameraControl? = null
 
     val requiredCrop = mutableStateOf(false)
     val allowMultipleOccurrences = mutableStateOf(false)
@@ -135,8 +135,41 @@ class CameraViewModel : ViewModel() {
         bitmapListener.invoke(bitmap)
         val imageInput = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(imageInput).addOnSuccessListener { visionText ->
-            Log.i("Prudhvi Log", "handleScanCameraImage: ${visionText.text}")
-            visionTextListener.invoke(visionText.text)
+            Log.i("Prudhvi Log", "handleScanCameraImage: All text ${visionText.text}")
+            val allElements = visionText.textBlocks
+                .flatMap { it.lines }
+                .flatMap { it.elements }
+
+            val maxHeight = allElements.maxOfOrNull { it.boundingBox?.height() ?: 0 } ?: 0
+            val tolerance = 30
+
+            val largestTextElements = allElements.filter { element ->
+                val height = element.boundingBox?.height() ?: 0
+                height in (maxHeight - tolerance)..maxHeight
+            }
+
+            allElements.forEach {
+                Log.i(
+                    "Prudhvi Log",
+                    "handleScanCameraImage: Text & Height ${it.text} ${it.boundingBox?.height()}"
+                )
+            }
+
+            if (largestTextElements.isNotEmpty()) {
+                var largeText = ""
+                largestTextElements.forEach { largestTextElement ->
+                    largeText += largestTextElement.text
+                }
+                if (requiredCrop.value) {
+                    visionTextListener.invoke(visionText.text)
+                } else {
+                    visionTextListener.invoke(largeText)
+                }
+            } else {
+                Log.i("Prudhvi Log", "handleScanCameraImage: No text elements found.")
+                println("No text elements found.")
+                visionTextListener.invoke("")
+            }
         }.addOnFailureListener {
             it.printStackTrace()
         }
