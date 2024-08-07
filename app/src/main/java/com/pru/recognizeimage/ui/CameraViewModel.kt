@@ -18,14 +18,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.utils.Global
+import com.pru.recognizeimage.utils.Global.changeBitmapContrastBrightness
 import com.pru.recognizeimage.utils.Global.dpToPx
+import com.pru.recognizeimage.utils.Global.generateDynamicCombinations
 import com.pru.recognizeimage.utils.Global.rotateBitmapIfNeeded
+import com.pru.recognizeimage.utils.Global.similarChars
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -48,6 +53,19 @@ class CameraViewModel : ViewModel() {
 
     val requiredCrop = mutableStateOf(false)
     val allowMultipleOccurrences = mutableStateOf(false)
+    val imageProcess = mutableStateOf(false)
+
+
+    val bitmap = mutableStateOf<Bitmap?>(null)
+    val results =
+        mutableStateOf<List<Result>>(listOf())
+    val plateNumber =
+        mutableStateOf<List<PlateNumb>>(listOf())
+    var showMore =
+        mutableStateOf(true)
+
+    var showLoader =
+        mutableStateOf(false)
 
     fun startCamera(surfaceProvider: Preview.SurfaceProvider, lifecycleOwner: LifecycleOwner) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(appContext)
@@ -124,13 +142,18 @@ class CameraViewModel : ViewModel() {
     }
 
 
-    suspend fun handleScanCameraImage(
+    private suspend fun handleScanCameraImage(
         uri: Uri?,
         bitmapListener: (Bitmap) -> Unit,
         visionTextListener: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         var bitmap = MediaStore.Images.Media.getBitmap(appContext.contentResolver, uri)
-        bitmap = rotateBitmapIfNeeded(bitmap)
+        if (!requiredCrop.value) {
+            bitmap = rotateBitmapIfNeeded(bitmap)
+        }
+        if (imageProcess.value) {
+            bitmap = changeBitmapContrastBrightness(bitmap, 1.5f, -0.2f)
+        }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         bitmapListener.invoke(bitmap)
         val imageInput = InputImage.fromBitmap(bitmap, 0)
@@ -172,6 +195,56 @@ class CameraViewModel : ViewModel() {
             }
         }.addOnFailureListener {
             it.printStackTrace()
+        }
+    }
+
+    fun readImageFromUri() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (capturedUri != null) {
+                val uri = Uri.fromFile(capturedUri!!)
+                showLoader.value = true
+                handleScanCameraImage(uri = uri, bitmapListener = {
+                    bitmap.value = it
+                }) { pn ->
+                    if (pn.isBlank()) {
+                        showLoader.value = false
+                        plateNumber.value = emptyList()
+                        results.value = emptyList()
+                        return@handleScanCameraImage
+                    }
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val processedList = mutableListOf<Result>()
+                        var resultText = pn.replace("[^a-zA-Z0-9]".toRegex(), "").uppercase()
+                        for (pos in Global.ignoreStrings) {
+                            resultText = when (pos.at) {
+                                Global.Position.End -> resultText.replaceAfterLast(pos.with, "")
+                                Global.Position.Middle -> resultText.replace(pos.with, "")
+                                Global.Position.Start -> resultText.replaceFirst(pos.with, "")
+                            }
+                        }
+                        plateNumber.value = resultText.map {
+                            PlateNumb(
+                                actual = it, char = it, tapped = 0
+                            )
+                        }
+                        val cases = mutableListOf<Pair<Char, List<Char>>>()
+                        for (i in resultText.indices) {
+                            val ls = similarChars[resultText[i]] ?: emptySet()
+                            val returnList = ls.toMutableList()
+                            returnList.sorted()
+                            returnList.add(resultText[i])
+                            cases.add(Pair(resultText[i], returnList.map { it.uppercaseChar() }))
+                        }
+                        val combinations =
+                            generateDynamicCombinations(cases, allowMultipleOccurrences.value)
+                        for (cmb in combinations) {
+                            processedList.add(cmb)
+                        }
+                        results.value = processedList
+                        showLoader.value = false
+                    }
+                }
+            }
         }
     }
 }

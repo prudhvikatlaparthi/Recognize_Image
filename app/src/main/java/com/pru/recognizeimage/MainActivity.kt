@@ -14,11 +14,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import com.pru.recognizeimage.utils.ScreenRoutes
 import com.pru.recognizeimage.theme.RecognizeImageTheme
 import com.pru.recognizeimage.ui.CameraScreen
 import com.pru.recognizeimage.ui.CameraViewModel
+import com.pru.recognizeimage.ui.InfoScreen
 import com.pru.recognizeimage.ui.ScanScreen
+import com.pru.recognizeimage.utils.ScreenRoutes
 
 class MainActivity : ComponentActivity() {
 
@@ -37,14 +38,26 @@ class MainActivity : ComponentActivity() {
                     startDestination = ScreenRoutes.ScanScreen
                 ) {
                     composable<ScreenRoutes.ScanScreen> {
-                        ScanScreen(viewModel) {
-                            navController.navigate(ScreenRoutes.CameraScreen(crop = it))
-                        }
+                        ScanScreen(
+                            viewModel = viewModel,
+                            scanListener = {
+                                navController.navigate(ScreenRoutes.CameraScreen(crop = it))
+                            },
+                            infoListener = {
+                                navController.navigate(ScreenRoutes.InfoScreen)
+                            }
+                        )
                     }
                     composable<ScreenRoutes.CameraScreen> {
                         val data = it.toRoute<ScreenRoutes.CameraScreen>().crop
                         CameraScreen(data, viewModel) {
-                            navController.popBackStack()
+                            viewModel.readImageFromUri()
+                            navController.navigateUp()
+                        }
+                    }
+                    composable<ScreenRoutes.InfoScreen> {
+                        InfoScreen {
+                            navController.navigateUp()
                         }
                     }
                 }

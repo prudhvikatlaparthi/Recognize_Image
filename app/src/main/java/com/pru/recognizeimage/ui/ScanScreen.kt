@@ -2,7 +2,6 @@ package com.pru.recognizeimage.ui
 
 import android.Manifest
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -20,6 +19,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,27 +29,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.sharp.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,15 +64,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pru.recognizeimage.appContext
 import com.pru.recognizeimage.theme.RecognizeImageTheme
-import com.pru.recognizeimage.utils.Global
-import com.pru.recognizeimage.utils.Global.generateDynamicCombinations
 import com.pru.recognizeimage.utils.Global.similarChars
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @ExperimentalFoundationApi
 @Composable
-fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
+fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit, infoListener : () -> Unit) {
 
     val onActivityPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -103,89 +99,13 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
         }
     }
 
-    var bitmap by remember {
-        mutableStateOf<Bitmap?>(null)
-    }
-    val results = remember {
-        mutableStateOf<List<Result>>(listOf())
-    }
-    val plateNumber = remember {
-        mutableStateOf<List<PlateNumb>>(listOf())
-    }
-    var showMore by remember {
-        mutableStateOf(true)
-    }
 
-    var showLoader by remember {
-        mutableStateOf(false)
-    }
 
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
-    LaunchedEffect(viewModel.capturedUri) {
-        if (viewModel.capturedUri != null) {
-            val uri = Uri.fromFile(viewModel.capturedUri!!)
-            showLoader = true
-            viewModel.handleScanCameraImage(uri = uri, bitmapListener = {
-                bitmap = it
-            }) { pn ->
-                if (pn.isBlank()) {
-                    showLoader = false
-                    plateNumber.value = emptyList()
-                    results.value = emptyList()
-                    return@handleScanCameraImage
-                }
-                scope.launch(Dispatchers.IO) {
-                    val processedList = mutableListOf<Result>()
-                    var resultText = pn.replace("[^a-zA-Z0-9]".toRegex(), "").uppercase()
-                    for (pos in Global.ignoreStrings) {
-                        resultText = when (pos.at) {
-                            Global.Position.End -> resultText.replaceAfterLast(pos.with, "")
-                            Global.Position.Middle -> resultText.replace(pos.with, "")
-                            Global.Position.Start -> resultText.replaceFirst(pos.with, "")
-                        }
-                    }
-                    plateNumber.value = resultText.map {
-                        PlateNumb(
-                            actual = it, char = it, tapped = 0
-                        )
-                    }
-                    val cases = mutableListOf<Pair<Char, List<Char>>>()
-                    for (i in resultText.indices) {
-                        val ls = similarChars[resultText[i]] ?: emptyList()
-                        val returnList = ls.toMutableList()
-                        returnList.add(resultText[i])
-                        cases.add(Pair(resultText[i], returnList.map { it.uppercaseChar() }))
-                    }
-                    val combinations =
-                        generateDynamicCombinations(cases, viewModel.allowMultipleOccurrences.value)
-                    for (cmb in combinations) {
-                        processedList.add(cmb)
-                    }
-                    results.value = processedList
-                    showLoader = false
-                }
-            }
-        }
-    }
-
     Scaffold(containerColor = Color.White, floatingActionButton = {
-        AnimatedVisibility(
-            visible = !gridState.isScrollingUp(), enter = fadeIn(), exit = fadeOut()
-        ) {
-            FloatingActionButton(
-                modifier = Modifier, onClick = {
-                    scope.launch {
-                        gridState.scrollToItem(0)
-                    }
-                }, containerColor = Color.White, contentColor = Color.Black
-            ) {
-                Icon(
-                    Icons.Default.ArrowUpward, contentDescription = "go to top"
-                )
-            }
-        }
+        GoTop(gridState)
     }) { paddingValue ->
         Column(
             modifier = Modifier
@@ -196,14 +116,14 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 stickyHeader {
-                    if (bitmap != null) {
+                    if (viewModel.bitmap.value != null) {
                         Surface(
                             Modifier
                                 .fillParentMaxWidth()
                                 .padding(top = 5.dp, start = 5.dp, end = 5.dp)
                         ) {
                             Image(
-                                bitmap!!.asImageBitmap(),
+                                viewModel.bitmap.value!!.asImageBitmap(),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .border(
@@ -239,7 +159,7 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                             horizontalArrangement = Arrangement.Start,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            /*Checkbox(
                                 checked = viewModel.allowMultipleOccurrences.value,
                                 onCheckedChange = {
                                     viewModel.allowMultipleOccurrences.value = it
@@ -250,26 +170,47 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                                 text = "Multiple\nOccurrences".uppercase(),
                                 modifier = Modifier,
                                 fontSize = 12.sp
-                            )
+                            )*/
+                            Checkbox(checked = viewModel.imageProcess.value, onCheckedChange = {
+                                viewModel.imageProcess.value = it
+                            }, modifier = Modifier)
+                            Text(text = "Image Process".uppercase(), modifier = Modifier, fontSize = 12.sp)
                         }
                     }
-                    Button(onClick = {
-                        multiplePermissionsLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.READ_EXTERNAL_STORAGE,
-                                Manifest.permission.CAMERA
+                    /*Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = viewModel.imageProcess.value, onCheckedChange = {
+                            viewModel.imageProcess.value = it
+                        }, modifier = Modifier)
+                        Text(text = "Image Process".uppercase(), modifier = Modifier, fontSize = 12.sp)
+                    }*/
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Button(onClick = {
+                            multiplePermissionsLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                                    Manifest.permission.CAMERA
+                                )
                             )
-                        )
-                    }, modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)) {
-                        Text(text = "Scan Number Plate")
+                        }, modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)) {
+                            Text(text = "Scan Number Plate")
+                        }
+                        IconButton(onClick = { infoListener.invoke() }) {
+                            Icon(imageVector = Icons.Sharp.Info, contentDescription = null, tint = Color.Gray)
+                        }
                     }
-                    if (plateNumber.value.isNotEmpty()) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            for(index in plateNumber.value.indices) {
-                                val pn = plateNumber.value[index]
+                    if (viewModel.plateNumber.value.isNotEmpty()) {
+                        FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            for(index in viewModel.plateNumber.value.indices) {
+                                val pn = viewModel.plateNumber.value[index]
                                 Box(
                                     modifier = Modifier
-                                        .padding(horizontal = 2.dp)
+                                        .padding(horizontal = 2.dp, vertical = 4.dp)
                                         .border(
                                             width = 1.dp,
                                             color = if (pn.active) Color.Black else Color.LightGray,
@@ -278,36 +219,53 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                                         .padding(5.dp)
                                         .combinedClickable(
                                             onClick = {
-                                                if (!pn.active) return@combinedClickable
-                                                val pm = plateNumber.value.toMutableList()
-                                                val tapped = pn.tapped
-                                                val chars = similarChars[pn.actual]
-                                                chars
-                                                    ?.getOrNull(tapped)
-                                                    ?.let {
-                                                        pn.char = it
-                                                        pn.tapped = tapped + 1
-                                                    } ?: run {
-                                                    pn.char = pn.actual
-                                                    pn.tapped = 0
-                                                }
-                                                pm[index] = pn
-                                                plateNumber.value = emptyList()
-                                                plateNumber.value = pm
+                                                scope.launch {
+                                                    if (!pn.active) return@launch
+                                                    viewModel.showLoader.value = true
+                                                    val pm = viewModel.plateNumber.value.toMutableList()
+                                                    val tapped = pn.tapped
+                                                    val chars = similarChars[pn.actual]
+                                                    chars
+                                                        ?.toList()
+                                                        ?.getOrNull(tapped)
+                                                        ?.let {
+                                                            pn.char = it
+                                                            pn.tapped = tapped + 1
+                                                        } ?: run {
+                                                        pn.char = pn.actual
+                                                        pn.tapped = 0
+                                                    }
+                                                    pm[index] = pn
+                                                    viewModel.plateNumber.value = emptyList()
+                                                    viewModel.plateNumber.value = pm
 
-                                                val sm = results.value.filter { plateNumber.value.map { it.char }.joinToString("") == it.resultValue }.getOrNull(0) ?: return@combinedClickable
-                                                sm.isSelected = true
-                                                val rm = results.value.toMutableList()
-                                                rm.forEach { it.isSelected = false }
-                                                rm[rm.indexOf(sm)] = sm.copy(isSelected = true)
-                                                results.value = emptyList()
-                                                results.value = rm
+                                                    /*val rm = viewModel.results.value.toMutableList()
+                                                    rm.forEach { it.isSelected = false }
+                                                    val sm = viewModel.results.value
+                                                        .filter {
+                                                            viewModel.plateNumber.value
+                                                                .map { it.char }
+                                                                .joinToString("") == it.resultValue
+                                                        }
+                                                        .getOrNull(0) ?: run {
+                                                        viewModel.results.value = emptyList()
+                                                        viewModel.results.value = rm
+                                                        viewModel.showLoader.value = false
+                                                        return@launch
+                                                    }
+                                                    sm.isSelected = true
+
+                                                    rm[rm.indexOf(sm)] = sm.copy(isSelected = true)
+                                                    viewModel.results.value = emptyList()
+                                                    viewModel.results.value = rm*/
+                                                    viewModel.showLoader.value = false
+                                                }
                                             },
                                             onLongClick = {
-                                                val pm = plateNumber.value.toMutableList()
+                                                val pm = viewModel.plateNumber.value.toMutableList()
                                                 pm[index] = pn.copy(active = !pn.active)
-                                                plateNumber.value = emptyList()
-                                                plateNumber.value = pm
+                                                viewModel.plateNumber.value = emptyList()
+                                                viewModel.plateNumber.value = pm
                                             },
                                         )
                                 ) {
@@ -322,39 +280,39 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                                 }
                             }
                         }
-                        Box(
+                        /*Box(
                             modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd
                         ) {
                             TextButton(
                                 onClick = {
-                                    showMore = !showMore
+                                    viewModel.showMore.value = !viewModel.showMore.value
                                 }, modifier = Modifier.padding(10.dp)
                             ) {
                                 Text(
-                                    text = if (showMore) "Show More" else "Show Less",
+                                    text = if (viewModel.showMore.value) "Show More" else "Show Less",
                                 )
                             }
-                        }
+                        }*/
                     }
-                    if (showLoader) {
+                    if (viewModel.showLoader.value) {
                         CircularProgressIndicator()
                     }
                 }
             }
-            if (!showMore) {
+            /*if (!viewModel.showMore.value) {
                 LazyVerticalGrid(columns = GridCells.Fixed(2), state = gridState) {
-                    val singleOccurrences = results.value.filter { !it.multipleOccurrences }
+                    val singleOccurrences = viewModel.results.value.filter { !it.multipleOccurrences }
                     items(singleOccurrences.size) { index ->
                         val res = singleOccurrences[index]
                         PlateSimilarItem(res) { out ->
-                            val rm = results.value.toMutableList()
+                            val rm = viewModel.results.value.toMutableList()
                             rm.forEach { it.isSelected = false }
                             res.isSelected = true
                             rm[index] = res
-                            results.value = emptyList()
-                            results.value = rm
+                            viewModel.results.value = emptyList()
+                            viewModel.results.value = rm
 
-                            plateNumber.value = out.map {
+                            viewModel.plateNumber.value = out.map {
                                 PlateNumb(
                                     actual = it, char = it, tapped = 0
                                 )
@@ -362,19 +320,19 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                         }
                     }
                     if (viewModel.allowMultipleOccurrences.value) {
-                        val multipleOccurrences = results.value.filter { it.multipleOccurrences }
+                        val multipleOccurrences = viewModel.results.value.filter { it.multipleOccurrences }
                             .sortedBy { it.resultValue }
                         items(multipleOccurrences.size) { index ->
                             val res = multipleOccurrences[index]
                             PlateSimilarItem(res) { out ->
-                                val rm = results.value.toMutableList()
+                                val rm = viewModel.results.value.toMutableList()
                                 rm.forEach { it.isSelected = false }
                                 res.isSelected = true
                                 rm[index] = res
-                                results.value = emptyList()
-                                results.value = rm
+                                viewModel.results.value = emptyList()
+                                viewModel.results.value = rm
 
-                                plateNumber.value = out.map {
+                                viewModel.plateNumber.value = out.map {
                                     PlateNumb(
                                         actual = it, char = it, tapped = 0
                                     )
@@ -383,10 +341,32 @@ fun ScanScreen(viewModel: CameraViewModel, scanListener: (Boolean) -> Unit) {
                         }
                     }
                 }
-            }
+            }*/
         }
 
 
+    }
+}
+
+@Composable
+private fun GoTop(
+    gridState: LazyGridState,
+) {
+    val scope = rememberCoroutineScope()
+    AnimatedVisibility(
+        visible = !gridState.isScrollingUp(), enter = fadeIn(), exit = fadeOut()
+    ) {
+        FloatingActionButton(
+            modifier = Modifier, onClick = {
+                scope.launch {
+                    gridState.scrollToItem(0)
+                }
+            }, containerColor = Color.White, contentColor = Color.Black
+        ) {
+            Icon(
+                Icons.Default.ArrowUpward, contentDescription = "go to top"
+            )
+        }
     }
 }
 
