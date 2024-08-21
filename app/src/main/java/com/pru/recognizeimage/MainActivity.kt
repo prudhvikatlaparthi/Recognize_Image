@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.pru.recognizeimage.theme.RecognizeImageTheme
 import com.pru.recognizeimage.ui.CameraScreen
@@ -41,16 +40,12 @@ class MainActivity : ComponentActivity() {
                         ScanScreen(
                             viewModel = viewModel,
                             scanListener = {
-                                navController.navigate(ScreenRoutes.CameraScreen(crop = it))
-                            },
-                            infoListener = {
-                                navController.navigate(ScreenRoutes.InfoScreen)
+                                navController.navigate(ScreenRoutes.CameraScreen)
                             }
                         )
                     }
                     composable<ScreenRoutes.CameraScreen> {
-                        val data = it.toRoute<ScreenRoutes.CameraScreen>().crop
-                        CameraScreen(data, viewModel) {
+                        CameraScreen(viewModel) {
                             viewModel.readImageFromUri()
                             navController.navigateUp()
                         }
