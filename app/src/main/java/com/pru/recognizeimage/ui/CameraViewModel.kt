@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit
 
 class CameraViewModel : ViewModel() {
 
-
     private val imageCapture = ImageCapture.Builder()
         .setTargetResolution(Size(dpToPx(320), dpToPx(150)))
         .build()
@@ -52,20 +51,25 @@ class CameraViewModel : ViewModel() {
     private var cameraControl: CameraControl? = null
 
     val requiredCrop = mutableStateOf(false)
-    val allowMultipleOccurrences = mutableStateOf(false)
+    private val allowMultipleOccurrences = mutableStateOf(false)
     val imageProcess = mutableStateOf(false)
 
 
     val bitmap = mutableStateOf<Bitmap?>(null)
-    val results =
+    private val results =
         mutableStateOf<List<Result>>(listOf())
     val plateNumber =
         mutableStateOf<List<PlateNumb>>(listOf())
-    var showMore =
-        mutableStateOf(true)
 
     var showLoader =
         mutableStateOf(false)
+
+    var showSelectionDialog =
+        mutableStateOf(false)
+
+    var addPosition: Global.Position = Global.Position.None
+
+    val showAddChar = false
 
     fun startCamera(surfaceProvider: Preview.SurfaceProvider, lifecycleOwner: LifecycleOwner) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(appContext)
@@ -191,7 +195,7 @@ class CameraViewModel : ViewModel() {
             } else {
                 Log.i("Prudhvi Log", "handleScanCameraImage: No text elements found.")
                 println("No text elements found.")
-                visionTextListener.invoke("")
+                visionTextListener.invoke("CLARK")
             }
         }.addOnFailureListener {
             it.printStackTrace()
@@ -220,6 +224,7 @@ class CameraViewModel : ViewModel() {
                                 Global.Position.End -> resultText.replaceAfterLast(pos.with, "")
                                 Global.Position.Middle -> resultText.replace(pos.with, "")
                                 Global.Position.Start -> resultText.replaceFirst(pos.with, "")
+                                Global.Position.None -> resultText
                             }
                         }
                         plateNumber.value = resultText.map {
@@ -246,5 +251,83 @@ class CameraViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun changeChar(
+        index: Int
+    ) {
+        viewModelScope.launch {
+            val pn = plateNumber.value[index]
+            if (!pn.active) return@launch
+            showLoader.value = true
+            val pm =
+                plateNumber.value.toMutableList()
+            val tapped = pn.tapped
+            val chars = similarChars[pn.actual]
+            chars
+                ?.toList()
+                ?.getOrNull(tapped)
+                ?.let {
+                    pn.char = it
+                    pn.tapped = tapped + 1
+                } ?: run {
+                pn.char = pn.actual
+                pn.tapped = 0
+            }
+            pm[index] = pn
+            plateNumber.value = emptyList()
+            plateNumber.value = pm
+
+            showLoader.value = false
+        }
+    }
+
+    fun disableChar(index: Int) {
+        val pn = plateNumber.value[index]
+        val pm = plateNumber.value.toMutableList()
+        pm[index] = pn.copy(active = !pn.active)
+        plateNumber.value = emptyList()
+        plateNumber.value = pm
+    }
+
+    fun addChar(item: Char) {
+        if (addPosition == Global.Position.None) return
+        val old = plateNumber.value.toMutableList()
+        old.add(
+            if (addPosition == Global.Position.Start) 0 else (plateNumber.value.size),
+            PlateNumb(
+                actual = item,
+                char = item,
+                tapped = 0,
+                active = true,
+                enableToChangePosition = false
+            )
+        )
+        plateNumber.value = emptyList()
+        plateNumber.value = old
+    }
+
+    fun enableToChangePosition(index: Int) {
+        val old = plateNumber.value.toMutableList()
+        val status = old[index].enableToChangePosition
+        old.forEach { it.enableToChangePosition = false }
+        old[index] = old[index].copy(enableToChangePosition = !status)
+        plateNumber.value = emptyList()
+        plateNumber.value = old
+    }
+
+    fun changeCharPosition(index: Int, position: Global.Position) {
+        val destinationPos = index + when (position) {
+            Global.Position.Start -> 1
+            Global.Position.End -> -1
+            else -> 0
+        }
+        val old = plateNumber.value.toMutableList()
+        val source = old[index].copy(enableToChangePosition = false)
+        val destination = old[destinationPos].copy(enableToChangePosition = false)
+        old[index] = destination
+        old[destinationPos] = source
+        plateNumber.value = emptyList()
+        plateNumber.value = old
     }
 }

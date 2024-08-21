@@ -12,7 +12,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -47,7 +49,7 @@ import java.io.File
 
 @SuppressLint("ClickableViewAccessibility")
 @Composable
-fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -> Unit) {
+fun CameraScreen(viewModel: CameraViewModel, resultListener: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var showLoader by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -97,6 +99,7 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                                 }
                             }
                         }, modifier = Modifier
+                            .padding(top = 30.dp)
                             .border(
                                 width = 1.dp,
                                 color = Color.White,
@@ -108,13 +111,14 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                             )
 
                     )
+                    Spacer(modifier = Modifier.weight(1f))
                     Button(onClick = {
                         viewModel.takePhoto { res, msg ->
                             if (!res) {
                                 Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
                                 return@takePhoto
                             }
-                            if (crop) {
+                            if (viewModel.requiredCrop.value) {
                                 showLoader = true
                                 activityListener.launch(
                                     CropImageContractOptions(
@@ -132,8 +136,8 @@ fun CameraScreen(crop: Boolean, viewModel: CameraViewModel, resultListener: () -
                                 resultListener.invoke()
                             }
                         }
-                    }, modifier = Modifier.padding(top = 50.dp)) {
-                        Text(text = "Capture")
+                    }, modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 20.dp).fillMaxWidth()) {
+                        Text(text = "CAPTURE")
                     }
                 }
             }

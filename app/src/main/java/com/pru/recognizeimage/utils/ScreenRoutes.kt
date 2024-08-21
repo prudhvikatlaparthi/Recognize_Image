@@ -9,7 +9,7 @@ sealed interface ScreenRoutes {
     data object ScanScreen : ScreenRoutes
 
     @Serializable
-    data class CameraScreen(var crop: Boolean) : ScreenRoutes
+    data object CameraScreen : ScreenRoutes
 
     @Serializable
     data object InfoScreen : ScreenRoutes
